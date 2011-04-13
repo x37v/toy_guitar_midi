@@ -24,6 +24,7 @@ int main(void) {
 	uint8_t switch_hist[HIST_LEN];
 	uint8_t note_val = 0;
 	uint16_t btns_down = 0;
+	bool trig_down = false;
 
 	for(i = 0; i < HIST_LEN; i++) {
 		trig_hist[i] = 0;
@@ -69,10 +70,11 @@ int main(void) {
 		}
 
 		if (consistent && trig_last != trig) {
+			trig_down = trig;
 			if (trig)
-				midi_send_noteon(&usb_midi,0,64,127);
+				midi_send_noteon(&usb_midi,0,note_val,127);
 			else
-				midi_send_noteoff(&usb_midi,0,64,127);
+				midi_send_noteoff(&usb_midi,0,note_val,127);
 			trig_last = trig;
 		}
 
@@ -115,8 +117,31 @@ int main(void) {
 			}
 			if (consistent && ((bool)(btn_last[btn_row] & mask)) != down) {
 				uint8_t n = btn_row * 8 + col;
-				if (n < 0x0F)
+				if (n < 0x0F) {
 					n = 0x0F - n;
+					if (down)
+						btns_down |= ((uint16_t)1 << n);
+					else
+						btns_down &= ~((uint16_t)1 << n);
+
+					//set the note value to the highest on the fretboard
+					//that is down
+					int8_t j;
+					uint8_t new_note_val = 0;
+					for (j = 0xF; j > 0; j--) {
+						if (btns_down & (1 << j)) {
+							new_note_val = j;
+							break;
+						}
+					}
+					//if the trigger is down and
+					//it is a new note val we need to send a note off and a new note
+					if (trig_down && note_val != new_note_val) {
+						midi_send_noteoff(&usb_midi,0,note_val,127);
+						midi_send_noteon(&usb_midi,0,new_note_val,127);
+					}
+					note_val = new_note_val;
+				}
 				midi_send_cc(&usb_midi, 0, n, (down ? 127 : 0));
 				if (down)
 					btn_last[btn_row] |= mask;
