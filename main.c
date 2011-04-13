@@ -84,7 +84,7 @@ int main(void) {
 				}
 			}
 			if (consistent && ((bool)(btn_last[btn_row] & mask)) != down) {
-				midi_send_cc(&usb_midi, 0, btn_row * 8 + col, (down ? 1 : 0));
+				midi_send_cc(&usb_midi, 0, btn_row * 8 + col, (down ? 127 : 0));
 				if (down)
 					btn_last[btn_row] |= mask;
 				else
