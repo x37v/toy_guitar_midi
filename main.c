@@ -20,17 +20,20 @@ int main(void) {
 	uint8_t i;
 	uint8_t btn_hist[BNT_ROWS][HIST_LEN];
 	uint8_t btn_last[BNT_ROWS];
+	uint8_t switch_last = 0xFF;
+	uint8_t switch_hist[HIST_LEN];
 
 	for(i = 0; i < HIST_LEN; i++) {
 		trig_hist[i] = 0;
 		for(btn_row = 0; btn_row < BNT_ROWS; btn_row++)
 			btn_hist[btn_row][i] = 0;
 		btn_last[i] = 0;
+		switch_hist[i] = 0;
 	}
 
-	//e0 as an input with pullup
-	DDRE &= ~(_BV(PE0));
-	PORTE |= _BV(PE0);
+	//e0,1,6,7 inputs with pullups
+	DDRE &= ~(_BV(PE0) | _BV(PE1) | _BV(PE6) | _BV(PE7));
+	PORTE |= (_BV(PE0) | _BV(PE1) | _BV(PE6) | _BV(PE7));
 
 	//porta is all inputs with pullups
 	DDRA = 0;
@@ -50,6 +53,9 @@ int main(void) {
 		DDRC = _BV(PC7) | 1 << (btn_row);
 		PORTC = 0;
 
+      midi_device_process(&usb_midi);
+
+		//deal with trigger
 		trig_hist[thist_index] = (bool)((~PINE) & _BV(PE0));
 		bool trig = trig_hist[0];
 		bool consistent = true;
@@ -68,11 +74,33 @@ int main(void) {
 			trig_last = trig;
 		}
 
-      midi_device_process(&usb_midi);
+		//deal with switch
+		switch_hist[thist_index] = ((_BV(PE1) & ~PINE) >> 1) | (((_BV(PE7) | _BV(PE6)) & ~PINE) >> 5);
+		uint8_t switch_cur = switch_hist[0];
+		if (switch_cur == 1 || switch_cur == 2 || switch_cur == 4) {
+			consistent = true;
+			for(i = 1; i < HIST_LEN; i++) {
+				if (switch_hist[i] != switch_cur) {
+					consistent = false;
+					break;
+				}
+			}
+			if (consistent && switch_cur != switch_last) {
+				//remap the value
+				uint8_t v = 0;
+				if (switch_cur == 2)
+					v = 1;
+				else if (switch_cur == 4)
+					v = 2;
+				midi_send_cc(&usb_midi, 0, 127, v);
+				switch_last = switch_cur;
+			}
+		}
 
-		uint8_t col;
+		//deal with buttons
 		btn_hist[btn_row][bhist_index] = ~PINA;
 
+		uint8_t col;
 		for(col = 0; col < 8; col++) {
 			consistent = true;
 			uint8_t mask = (1 << col);
@@ -92,6 +120,7 @@ int main(void) {
 			}
 		}
 
+		//update indicies
 		thist_index += 1;
 		if (thist_index >= HIST_LEN)
 			thist_index = 0;
