@@ -22,6 +22,8 @@ int main(void) {
 	uint8_t btn_last[BNT_ROWS];
 	uint8_t switch_last = 0xFF;
 	uint8_t switch_hist[HIST_LEN];
+	uint8_t note_val = 0;
+	uint16_t btns_down = 0;
 
 	for(i = 0; i < HIST_LEN; i++) {
 		trig_hist[i] = 0;
@@ -112,7 +114,10 @@ int main(void) {
 				}
 			}
 			if (consistent && ((bool)(btn_last[btn_row] & mask)) != down) {
-				midi_send_cc(&usb_midi, 0, btn_row * 8 + col, (down ? 127 : 0));
+				uint8_t n = btn_row * 8 + col;
+				if (n < 0x0F)
+					n = 0x0F - n;
+				midi_send_cc(&usb_midi, 0, n, (down ? 127 : 0));
 				if (down)
 					btn_last[btn_row] |= mask;
 				else
