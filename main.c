@@ -135,12 +135,15 @@ int main(void) {
 						}
 					}
 					//if the trigger is down and
-					//it is a new note val we need to send a note off and a new note
+					//it is a new note val we need to send new note and turn the old note off
+					//send the new note first so that we can implement a slide
 					if (trig_down && note_val != new_note_val) {
-						midi_send_noteoff(&usb_midi,0,note_val,127);
 						midi_send_noteon(&usb_midi,0,new_note_val,127);
+						midi_send_noteoff(&usb_midi,0,note_val,127);
 					}
 					note_val = new_note_val;
+				} else if (n > 0x11) {
+					n -= 1;
 				}
 				midi_send_cc(&usb_midi, 0, n, (down ? 127 : 0));
 				if (down)
