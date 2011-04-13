@@ -1,0 +1,11 @@
+.dep
+Descriptors.o
+main.o
+midi_usb.o
+*.lst
+*.eep
+*.elf
+*.hex
+*.lss
+*.map
+*.sym
