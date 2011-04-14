@@ -9,6 +9,7 @@ void fallthrough_callback(MidiDevice * device, uint16_t cnt, uint8_t byte0, uint
 
 #define HIST_LEN 4
 #define BNT_ROWS 3
+#define NUM_NOTES 16
 
 int main(void) {
    MidiDevice usb_midi;
@@ -22,9 +23,9 @@ int main(void) {
 	uint8_t btn_last[BNT_ROWS];
 	uint8_t switch_last = 0xFF;
 	uint8_t switch_hist[HIST_LEN];
-	uint8_t note_val = 0;
 	uint16_t btns_down = 0;
 	bool trig_down = false;
+	bool note_on[NUM_NOTES];
 
 	for(i = 0; i < HIST_LEN; i++) {
 		trig_hist[i] = 0;
@@ -33,6 +34,9 @@ int main(void) {
 		btn_last[i] = 0;
 		switch_hist[i] = 0;
 	}
+
+	for(i = 0; i < NUM_NOTES; i++)
+		note_on[i] = false;
 
 	//e0,1,6,7 inputs with pullups
 	DDRE &= ~(_BV(PE0) | _BV(PE1) | _BV(PE6) | _BV(PE7));
@@ -71,10 +75,28 @@ int main(void) {
 
 		if (consistent && trig_last != trig) {
 			trig_down = trig;
-			if (trig)
-				midi_send_noteon(&usb_midi,0,note_val,127);
-			else
-				midi_send_noteoff(&usb_midi,0,note_val,127);
+			if (trig) {
+				//if no buttons are down, play the 'open' note
+				if (btns_down == 0) {
+					note_on[0] = true;
+					midi_send_noteon(&usb_midi,0,0,127);
+				} else {
+					//otherwise look for buttons that are down and play them
+					for(i = 1; i < 16; i++) {
+						if (btns_down & (1 << i)) {
+							note_on[i] = true;
+							midi_send_noteon(&usb_midi,0,i,127);
+						}
+					}
+				}
+			} else {
+				for(i = 0; i < NUM_NOTES; i++) {
+					if (note_on[i]) {
+						note_on[i] = false;
+						midi_send_noteoff(&usb_midi,0,i,127);
+					}
+				}
+			}
 			trig_last = trig;
 		}
 
@@ -124,28 +146,34 @@ int main(void) {
 					else
 						btns_down &= ~((uint16_t)1 << n);
 
-					//set the note value to the highest on the fretboard
-					//that is down
-					int8_t j;
-					uint8_t new_note_val = 0;
-					for (j = 0xF; j > 0; j--) {
-						if (btns_down & (1 << j)) {
-							new_note_val = j;
-							break;
+					//if this is a release and our note is no
+					//release it
+					if (!down && note_on[n]) {
+						note_on[n] = false;
+						midi_send_noteoff(&usb_midi,0,n,127);
+					}
+					//if the trigger is down and we're down, create a new note
+					//otherwise, if there are no buttons down, play the 'open' note
+					if (trig_down) {
+						if (down) {
+							note_on[n] = true;
+							midi_send_noteon(&usb_midi,0,n,127);
+							//if the open note is on then turn it off
+							if (note_on[0]) {
+								note_on[0] = false;
+								midi_send_noteoff(&usb_midi,0,0,127);
+							}
+						} else if (btns_down == 0) {
+							midi_send_noteon(&usb_midi,0,0,127);
 						}
 					}
-					//if the trigger is down and
-					//it is a new note val we need to send new note and turn the old note off
-					//send the new note first so that we can implement a slide
-					if (trig_down && note_val != new_note_val) {
-						midi_send_noteon(&usb_midi,0,new_note_val,127);
-						midi_send_noteoff(&usb_midi,0,note_val,127);
-					}
-					note_val = new_note_val;
 				} else if (n > 0x11) {
 					n -= 1;
 				}
-				midi_send_cc(&usb_midi, 0, n, (down ? 127 : 0));
+
+				if (n >= 0x10)
+					midi_send_cc(&usb_midi, 0, n, (down ? 127 : 0));
+
 				if (down)
 					btn_last[btn_row] |= mask;
 				else
