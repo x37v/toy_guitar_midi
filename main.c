@@ -81,6 +81,11 @@ int main(void) {
 					note_on[0] = true;
 					midi_send_noteon(&usb_midi,0,0,127);
 				} else {
+					//turn off the open note if it is on
+					if (note_on[0]) {
+						note_on[0] = false;
+						midi_send_noteoff(&usb_midi,0,0,127);
+					}
 					//otherwise look for buttons that are down and play them
 					for(i = 1; i < 16; i++) {
 						if (btns_down & (1 << i)) {
@@ -164,6 +169,7 @@ int main(void) {
 								midi_send_noteoff(&usb_midi,0,0,127);
 							}
 						} else if (btns_down == 0) {
+							note_on[0] = true;
 							midi_send_noteon(&usb_midi,0,0,127);
 						}
 					}
