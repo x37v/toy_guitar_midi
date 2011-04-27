@@ -114,6 +114,7 @@ OBJDIR = .
 # Path to the LUFA library
 LUFA_PATH = ../lufa101122/
 MIDILIB_PATH = ../xnormidi/
+USBMIDI_PATH = $(MIDILIB_PATH)/implementations/lufa_midi/
 
 
 # LUFA library compile-time options and predefined tokens
@@ -129,13 +130,13 @@ include $(LUFA_PATH)/LUFA/makefile
 
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = midi_usb.c   \
-	  Descriptors.c \
-	  main.c \
+SRC = main.c \
 	  $(MIDILIB_PATH)/midi.c \
 	  $(MIDILIB_PATH)/midi_device.c \
 	  $(MIDILIB_PATH)/bytequeue/bytequeue.c \
 	  $(MIDILIB_PATH)/bytequeue/interrupt_setting.c \
+	  $(USBMIDI_PATH)/Descriptors.c \
+	  $(USBMIDI_PATH)/midi_usb.c   \
 	  $(LUFA_SRC_USB)                     \
 	  $(LUFA_SRC_USBCLASS)
 
@@ -171,7 +172,7 @@ DEBUG = dwarf-2
 #     Each directory must be seperated by a space.
 #     Use forward slashes for directory separators.
 #     For a directory that has spaces, enclose it in quotes.
-EXTRAINCDIRS = $(LUFA_PATH)/ $(MIDILIB_PATH)/ /usr/local/avr/include/
+EXTRAINCDIRS = $(LUFA_PATH)/ $(MIDILIB_PATH)/ $(USBMIDI_PATH)/ /usr/local/avr/include/
 
 
 # Compiler flag to set the C Standard level.
