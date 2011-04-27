@@ -113,7 +113,7 @@ OBJDIR = .
 
 # Path to the LUFA library
 LUFA_PATH = ../lufa101122/
-MIDILIB_PATH = ../midi/
+MIDILIB_PATH = ../xnormidi/
 
 
 # LUFA library compile-time options and predefined tokens
